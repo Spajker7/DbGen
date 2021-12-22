@@ -39,7 +39,7 @@ public class DBGen {
         options.addOption(Option.builder()
                 .option("f")
                 .longOpt("final")
-                .desc("Should the classes be final.")
+                .desc("Should the classes fields be final.")
                 .build());
 
         options.addOption(Option.builder()
