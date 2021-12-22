@@ -3,8 +3,8 @@ package pro.spajk.dbgen.db;
 import java.util.List;
 
 public class Table {
-    private String name;
-    private List<Column> columns;
+    private final String name;
+    private final List<Column> columns;
 
     public Table(String name, List<Column> columns) {
         this.name = name;
