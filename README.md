@@ -1,5 +1,7 @@
 # DbGen
-Small project to generate Java class files from database schema
+Small project to generate Java class files from database schema.
+
+Currently, only MySQL is supported. Other databases can be used by including their database drivers in `pom.xml`.
 
 # Usage
 ```
