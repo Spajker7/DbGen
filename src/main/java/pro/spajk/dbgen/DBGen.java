@@ -7,12 +7,27 @@ import pro.spajk.dbgen.db.Table;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.sql.*;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 public class DBGen {
+    private static Logger LOGGER = Logger.getLogger(DBGen.class.getName());
 
     public static void main(String[] args) {
+        // Setup logger
+        LOGGER.setLevel(Level.INFO);
+        InputStream stream = DBGen.class.getClassLoader().getResourceAsStream("logging.properties");
+        try {
+            LogManager.getLogManager().readConfiguration(stream);
+            LOGGER = Logger.getLogger(DBGen.class.getName());
+
+        } catch (IOException ignored) { }
+
         // Parsing args
         Options options = new Options();
 
@@ -84,31 +99,57 @@ public class DBGen {
                 .argName("table")
                 .build());
 
+        options.addOption(Option.builder()
+                .option("h")
+                .longOpt("help")
+                .desc("Print help.")
+                .build());
+
+        options.addOption(Option.builder()
+                .option("v")
+                .longOpt("verbose")
+                .desc("More logging.")
+                .build());
+
         CommandLineParser parser = new DefaultParser();
         try {
             CommandLine cmd = parser.parse(options, args);
 
-            GeneratorSettings generatorSettings = new GeneratorSettings(
-                    cmd.hasOption("jdbi"),
-                    cmd.hasOption("final"),
-                    cmd.getOptionValue("output"),
-                    cmd.getOptionValue("jdbc"),
-                    cmd.getOptionValue("username"),
-                    cmd.getOptionValue("password"),
-                    cmd.getOptionValue("package"),
-                    cmd.getOptionValues("include") != null ? Arrays.asList(cmd.getOptionValues("include")) : Collections.emptyList(),
-                    cmd.getOptionValues("exclude") != null ? Arrays.asList(cmd.getOptionValues("exclude")) : Collections.emptyList());
+            if(cmd.hasOption("verbose")) {
+                LOGGER.setLevel(Level.ALL);
+            }
 
-            DBGen instance = new DBGen();
-            instance.generate(generatorSettings);
+            if(cmd.hasOption("help")) {
+                printHelp(options);
+            } else {
+                GeneratorSettings generatorSettings = new GeneratorSettings(
+                        cmd.hasOption("jdbi"),
+                        cmd.hasOption("final"),
+                        cmd.getOptionValue("output"),
+                        cmd.getOptionValue("jdbc"),
+                        cmd.getOptionValue("username"),
+                        cmd.getOptionValue("password"),
+                        cmd.getOptionValue("package"),
+                        cmd.getOptionValues("include") != null ? Arrays.asList(cmd.getOptionValues("include")) : Collections.emptyList(),
+                        cmd.getOptionValues("exclude") != null ? Arrays.asList(cmd.getOptionValues("exclude")) : Collections.emptyList());
+
+                DBGen instance = new DBGen();
+                instance.generate(generatorSettings);
+            }
         } catch (ParseException e) {
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp("java -jar dbgen.jar", options);
+            printHelp(options);
         }
+    }
+
+    private static void printHelp(Options options) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.printHelp("java -jar dbgen.jar", options);
     }
 
     public void generate(GeneratorSettings settings) {
         List<Table> tables = new ArrayList<>();
+
+        LOGGER.info("Obtaining database schema...");
 
         // Try to connect
         try(Connection connection = DriverManager.getConnection(settings.getJdbcUrl(), settings.getDbUsername(), settings.getDbPassword())) {
@@ -141,8 +182,11 @@ public class DBGen {
                 tables.add(new Table(tableName, columns));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.severe("Error getting database schema: " + e.getMessage());
+            return;
         }
+
+        LOGGER.info("Generating classes...");
 
         String packageName = settings.getPackageName() != null ? settings.getPackageName() : "";
 
@@ -169,7 +213,6 @@ public class DBGen {
                     if(! column.isNullable())
                         type = type.unboxify();
 
-
                     String propertyName = NameUtils.getPropertyName(column.getName());
                     JFieldVar fieldVar = jClass.field(settings.isFinalClasses() ? JMod.PROTECTED | JMod.FINAL : JMod.PROTECTED, type, propertyName);
 
@@ -194,7 +237,7 @@ public class DBGen {
                     }
                 }
 
-
+                LOGGER.info("Generated " + table.getName());
             } catch (JClassAlreadyExistsException ignored) {
             }
         }
@@ -208,7 +251,7 @@ public class DBGen {
                 purgeDirectory(destination);
             }
 
-            jCodeModel.build(destination);
+            jCodeModel.build(destination, (PrintStream) null);
         } catch (IOException e) {
             e.printStackTrace();
         }

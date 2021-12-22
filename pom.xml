@@ -8,6 +8,10 @@
     <artifactId>dbgen</artifactId>
     <version>1.0</version>
 
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>mysql</groupId>
@@ -39,6 +43,21 @@
                 <version>3.8.1</version>
                 <configuration>
                     <release>11</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <mainClass>pro.spajk.dbgen.DBGen</mainClass>
+                            <classpathPrefix/>
+                        </manifest>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>
